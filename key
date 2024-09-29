@@ -1,0 +1,32 @@
+targetId id
+title
+horizontal_cover
+square_cover
+vertical_cover
+
+author_name []
+
+styles 分类
+last_ord 最新章节
+is_finish 是否完结 0 1
+evaluate 简介
+total 总数
+release_time 发布时间
+renewal_time 更新时间
+pay_mode 是否付费
+tags 标签
+horizontal_covers banner图
+
+
+
+targetId id
+ord 序号
+pay_mode 是否付费 0 1
+is_locked 是否锁定 true false
+is_in_free 是否免费 true false
+title
+cover
+pub_time
+pay_gold
+size
+image_count
