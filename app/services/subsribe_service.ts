@@ -1,8 +1,8 @@
 /*
  * @Author: lkw199711 lkw199711@163.com
  * @Date: 2024-09-29 00:13:56
- * @LastEditors: lkw199711 lkw199711@163.com
- * @LastEditTime: 2024-09-29 20:29:44
+ * @LastEditors: 梁楷文 lkw199711@163.com
+ * @LastEditTime: 2024-09-30 10:36:53
  * @FilePath: \manga-get\app\services\subsribe_service.ts
  */
 import Axios from 'axios'
@@ -11,21 +11,41 @@ const cookie = `buvid3=1C68BCE1-EA26-6132-4BC3-4CB18AA6221B07705infoc; b_nut=171
 
 const axios = Axios.create({
   //   baseURL: 'https://manga.bilibili.com',
-  timeout: 1000,
+  timeout: 5000,
   headers: {
     'Content-Type': 'application/json',
     'Cookie': cookie,
     'Origin': 'https://manga.bilibili.com',
-    'Referer': 'https://manga.bilibili.com/mc29988/592863?from=manga_detail',
+    'Referer': 'https://manga.bilibili.com',
+  },
+  params: {
+    device: 'pc',
+    platform: 'web',
   },
   withCredentials: true,
 })
-
+const download = './download'
 export async function start() {
   console.log('start')
   // 解析章节
+  const meta = await get_meta(32324)
+  const chapters = meta.chapters
+  const mangaName = meta.title
+  const metaFile = `${download}/${mangaName}.json`
+  if (!fs.existsSync(metaFile)) await fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2))
+  for (let i = 0; i < chapters.length; i++) {
+    const chapter = chapters[i]
+    if (chapter.isLocked) {
+      console.log('locked')
+      continue
+    }
+    const route = `${download}/${mangaName}/${chapter.ord.toString().padStart(5, '0')} ${chapter.title}`
+    // 已下载 跳过
+    if (fs.existsSync(route)) continue
+    await download_chapter(chapter.targetId, route)
+  }
 }
-async function get_chapter_list(comic_id: number) {
+async function get_meta(comic_id: number) {
   const ComicDetailUrl = 'https://manga.bilibili.com/twirp/comic.v1.Comic/ComicDetail'
   const res = await axios.post(ComicDetailUrl, { comic_id })
   const data = res.data.data
@@ -45,6 +65,7 @@ async function get_chapter_list(comic_id: number) {
       count: item.image_count,
     }
   })
+  
   const meta = {
     targetId: data.id,
     title: data.title,
@@ -68,25 +89,24 @@ async function get_chapter_list(comic_id: number) {
   return meta
 }
 
-async function download_chapter(chapterId: number) {
+async function download_chapter(chapterId: number, downloadPath: string) {
   // 获取图片列表
   const images = await image_index(chapterId)
   const paths = images.map((item: any) => item.path)
   //   console.log(images)
   const tokens = await image_token(paths)
-  tokens.forEach(async (item: any, index: number) => {
+  for (let i = 0; i < tokens.length; i++){
+    const item = tokens[i]
     const url = `${item.url}?token=${item.token}`
-    const downloadPath = `./download/漫画名/章节名`
     await fs.promises.mkdir(downloadPath, { recursive: true })
-    const picName = index.toString().padStart(5, '0')
+    const picName = i.toString().padStart(5, '0')
     const localPath = `${downloadPath}/${picName}.jpg`
-    await downloadFile(url, localPath)
-  })
+    await downloadImage(url, localPath)
+  }
 }
 
 async function image_index(ep_id: number) {
-  const GetImageIndexURL =
-    'https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex?device=pc&platform=web'
+  const GetImageIndexURL = 'https://manga.bilibili.com/twirp/comic.v1.Comic/GetImageIndex'
   const res = await axios.post(GetImageIndexURL, { ep_id })
   const data = res.data.data
   const images = data.images
@@ -95,7 +115,7 @@ async function image_index(ep_id: number) {
 
 async function image_token(paths: string[]) {
   const ImageTokenURL =
-    'https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web'
+    'https://manga.bilibili.com/twirp/comic.v1.Comic/ImageToken'
   const res = await axios.post(ImageTokenURL, {
     urls: JSON.stringify(paths),
   })
@@ -104,11 +124,11 @@ async function image_token(paths: string[]) {
 }
 
 import * as fs from 'fs'
-import { title } from 'process'
-import { finished } from 'stream'
 async function downloadFile(url: string, localPath: string) {
   await Axios.get(url, { responseType: 'arraybuffer' }).then(async function (response) {
     const bufObj = Buffer.from(await response.data)
     fs.writeFileSync(localPath, bufObj, 'binary')
   })
 }
+
+
